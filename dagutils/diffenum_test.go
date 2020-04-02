@@ -2,6 +2,7 @@ package dagutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -211,7 +212,8 @@ func TestDiffEnumFail(t *testing.T) {
 	}
 
 	err := DiffEnumerate(ctx, lgds, nds["a1"].Cid(), nds["a2"].Cid())
-	if err != ipld.ErrNotFound {
+	if !errors.Is(err, ipld.ErrNotFound{Cid: nds["a1"].Cid()}) ||
+		!errors.Is(err, ipld.ErrNotFound{Cid: nds["a2"].Cid()}) {
 		t.Fatal("expected err not found")
 	}
 

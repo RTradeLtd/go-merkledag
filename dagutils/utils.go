@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	bserv "github.com/ipfs/go-blockservice"
+	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	syncds "github.com/ipfs/go-datastore/sync"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
@@ -100,14 +101,17 @@ func (e *Editor) insertNodeAtPath(ctx context.Context, root *dag.ProtoNode, path
 	if len(path) == 1 {
 		return addLink(ctx, e.tmp, root, path[0], toinsert)
 	}
-
+	gocid, err := cid.Decode(path[0])
+	if err != nil {
+		return nil, err
+	}
 	nd, err := root.GetLinkedProtoNode(ctx, e.tmp, path[0])
 	if err != nil {
 		// if 'create' is true, we create directories on the way down as needed
 		if err == dag.ErrLinkNotFound && create != nil {
 			nd = create()
 			err = nil // no longer an error case
-		} else if err == ipld.ErrNotFound {
+		} else if errors.Is(err, ipld.ErrNotFound{Cid: gocid}) {
 			// try finding it in our source dagstore
 			nd, err = root.GetLinkedProtoNode(ctx, e.src, path[0])
 		}
@@ -167,10 +171,13 @@ func (e *Editor) rmLink(ctx context.Context, root *dag.ProtoNode, path []string)
 
 		return root, nil
 	}
-
+	gocid, err := cid.Decode(path[0])
+	if err != nil {
+		return nil, err
+	}
 	// search for node in both tmp dagstore and source dagstore
 	nd, err := root.GetLinkedProtoNode(ctx, e.tmp, path[0])
-	if err == ipld.ErrNotFound {
+	if errors.Is(err, ipld.ErrNotFound{Cid: gocid}) {
 		nd, err = root.GetLinkedProtoNode(ctx, e.src, path[0])
 	}
 
@@ -217,7 +224,7 @@ func copyDag(ctx context.Context, nd ipld.Node, from, to ipld.DAGService) error 
 	for _, lnk := range nd.Links() {
 		child, err := lnk.GetNode(ctx, from)
 		if err != nil {
-			if err == ipld.ErrNotFound {
+			if errors.Is(err, ipld.ErrNotFound{Cid: lnk.Cid}) {
 				// not found means we didnt modify it, and it should
 				// already be in the target datastore
 				continue

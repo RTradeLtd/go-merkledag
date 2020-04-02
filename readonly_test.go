@@ -2,6 +2,7 @@ package merkledag_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	. "github.com/ipfs/go-merkledag"
@@ -55,7 +56,7 @@ func TestReadonlyProperties(t *testing.T) {
 		t.Fatal("expected ErrReadOnly")
 	}
 
-	if _, err := ro.Get(ctx, cids[0]); err != ipld.ErrNotFound {
+	if _, err := ro.Get(ctx, cids[0]); !errors.Is(err, ipld.ErrNotFound{Cid: cids[0]}) {
 		t.Fatal("expected ErrNotFound")
 	}
 	if _, err := ro.Get(ctx, cids[3]); err != nil {
